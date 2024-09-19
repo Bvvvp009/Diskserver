@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 10px;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        .file-group {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .file-group h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .file-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .file-item {
+            width: 100%;
+            max-width: 180px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .file-item img,
+        .file-item video {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+
+        .file-item p {
+            word-wrap: break-word;
+            font-size: 14px;
+        }
+
+        /* Responsive for mobile */
+        @media (max-width: 600px) {
+            .file-list {
+                display: block;
+            }
+
+            .file-item {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Uploaded Files</h1>
+    {{range .FileGroups}}
+        <h2>Files Uploaded on {{.Date}}</h2>
+        <div class="file-list">
+        {{range .Files}}
+            <div class="file-item">
+                {{if .IsImage}}
+                    <img src="/file/{{.Name}}" alt="{{.Name}}" />
+                {{else if .IsVideo}}
+                    <video controls>
+                        <source src="/file/{{.Name}}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                {{else if .IsDoc}}
+                    <a href="/file/{{.Name}}" target="_blank">{{.Name}}</a>
+                {{else}}
+                    <a href="/file/{{.Name}}" download>{{.Name}}</a>
+                {{end}}
+            </div>
+        {{end}}
+        </div>
+    {{end}}
+</body>
+</html>

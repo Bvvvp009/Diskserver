@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload and Display</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f5;
+        }
+
+        h2 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        #uploadForm {
+            margin-bottom: 30px;
+        }
+
+        input[type="file"] {
+            padding: 8px;
+            background-color: #eee;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #5cb85c;
+            border: none;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #4cae4c;
+        }
+
+        /* Thumbnail container */
+        .file-item {
+            width: 150px;
+            height: 150px;
+            margin: 10px;
+            display: inline-block;
+            text-align: center;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Thumbnail image/video/audio size */
+        .thumbnail {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+        .file-item p {
+            font-size: 12px;
+            word-wrap: break-word;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #d9534f;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .delete-btn:hover {
+            background-color: #c9302c;
+        }
+
+        .file-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Upload a File</h2>
+    <form id="uploadForm" enctype="multipart/form-data" method="post">
+        <input type="file" name="uploadfile" id="uploadfile" />
+        <button type="submit">Upload</button>
+    </form>
+
+    <h2>Uploaded Files</h2>
+    <div id="fileList" class="file-list"></div>
+
+    <script>
+        async function loadFiles() {
+            const response = await fetch('/api/list-files');
+            const data = await response.json();
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';  // Clear existing files
+
+            data.forEach(group => {
+                // Create and append date header
+                const dateHeader = document.createElement('h3');
+                dateHeader.textContent = `Files from ${group.date}`;  // Access the date
+                fileList.appendChild(dateHeader);
+
+                // Create a container for files of this date
+                const fileGroupDiv = document.createElement('div');
+                
+                fileGroupDiv.classList.add('file-list');
+
+                group.files.forEach(file => {
+                    const fileItem = document.createElement('div');
+                    fileItem.classList.add('file-item');
+
+                    // Create thumbnail element based on file type
+                    if (file.is_image) {
+                        const img = document.createElement('img');
+                        img.src = `/uploads/${file.name}`;
+                        img.alt = file.name;
+                        img.classList.add('thumbnail');
+                        fileItem.appendChild(img);
+                    }
+
+                    if (file.is_video || file.is_audio) {
+                        const video = document.createElement('video');
+                        video.controls = true;
+                        video.classList.add('thumbnail');
+                        const source = document.createElement('source');
+                        source.src = `/uploads/${file.name}`;
+                        source.type = file.is_audio ? 'audio/mp3' : 'video/mp4';  // Audio or video
+                        video.appendChild(source);
+                        fileItem.appendChild(video);
+                    }
+
+                    if (file.is_doc) {
+                        const iframe = document.createElement('iframe');
+                        iframe.src = `/uploads/${file.name}`;
+                        iframe.classList.add('thumbnail');
+                        iframe.style.border = 'none';
+                        fileItem.appendChild(iframe);
+                    }
+
+                    // Add file name below the thumbnail
+                    const fileName = document.createElement('p');
+                    fileName.textContent = file.name;
+                    fileItem.appendChild(fileName);
+
+                    // Add delete button
+                    const deleteButton = document.createElement('button');
+                    deleteButton.classList.add('delete-btn');
+                    deleteButton.innerText = 'Delete';
+                    deleteButton.onclick = () => deleteFile(file.name);
+                    fileItem.appendChild(deleteButton);
+
+                    // Append the file item to the file group
+                    fileGroupDiv.appendChild(fileItem);
+                });
+
+                // Append the file group to the file list
+                fileList.appendChild(fileGroupDiv);
+            });
+        }
+
+        // Handle file upload
+        document.getElementById('uploadForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(() => loadFiles())  // Reload the files after upload
+            .catch(err => console.error('Error uploading file:', err));
+        });
+
+        // Handle file deletion
+        function deleteFile(fileName) {
+            fetch(`/delete/${fileName}`, {
+                method: 'DELETE'
+            })
+            .then(() => loadFiles())  // Reload the files after deletion
+            .catch(err => console.error('Error deleting file:', err));
+        }
+
+        // Load files when page loads
+        document.addEventListener('DOMContentLoaded', loadFiles);
+    </script>
+</body>
+</html>
