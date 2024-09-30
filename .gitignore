@@ -1,0 +1,7 @@
+.env
+main.exe
+/temp
+go.mod
+go.sum
+air.toml
+cmd/server/temp
