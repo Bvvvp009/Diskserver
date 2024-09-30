@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <title>File Upload and Display</title>
     <style>
         body {
@@ -43,27 +45,50 @@
             background-color: #4cae4c;
         }
 
+        /* Date header style */
+        .date-header {
+            font-size: 20px;
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            background-color: #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            width: 100%;
+        }
+
         /* Thumbnail container */
+        .file-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
         .file-item {
             width: 150px;
             height: 150px;
             margin: 10px;
-            display: inline-block;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             text-align: center;
             background-color: #fff;
-            padding: 15px;
+            padding: 10px;
             border-radius: 10px;
             box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
-            position: relative;
-            overflow: hidden;
         }
 
-        /* Thumbnail image/video/audio size */
+        /* Thumbnail image/video/folder size */
         .thumbnail {
             width: 100%;
             height: 100%;
             object-fit: cover;
             border-radius: 5px;
+        }
+
+        .folder-icon {
+            font-size: 100px;
+            color: #ffa500;
         }
 
         .file-item p {
@@ -72,12 +97,10 @@
         }
 
         .delete-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
+            margin-top: 5px;
+            padding: 5px 10px;
             background-color: #d9534f;
             color: white;
-            padding: 5px 10px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -88,13 +111,31 @@
             background-color: #c9302c;
         }
 
-        .file-list {
+        /* Add Folder button style */
+        #addFolderBtn {
+            font-size: 24px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        #addFolderBtn:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
+
 <body>
     <h2>Upload a File</h2>
     <form id="uploadForm" enctype="multipart/form-data" method="post">
@@ -103,103 +144,135 @@
     </form>
 
     <h2>Uploaded Files</h2>
+
     <div id="fileList" class="file-list"></div>
 
+    <!-- Add Folder button -->
+    <button id="addFolderBtn" title="Add Folder">+</button>
+
     <script>
-        async function loadFiles() {
-            const response = await fetch('/api/list-files');
+        let currentFolder = '';  // To store the current folder path
+
+        // Handle form submission with dynamic folder path
+        document.getElementById('uploadForm').addEventListener('submit', function (e) {
+            e.preventDefault(); // Prevent default form submission
+
+            // Set the form's action with the current folder in the query parameter
+            const action = `/upload${currentFolder ? '?folder=' + encodeURIComponent(currentFolder) : ''}`;
+            this.action = action;
+
+            // Now submit the form
+            this.submit();
+        });
+
+        // Function to load files for a given folder path
+        async function loadFiles(path = '') {
+            currentFolder = path;  // Update current folder
+
+            const response = await fetch(`/api/list-files?folder=${path}`); // Fetch files for the current path
             const data = await response.json();
             const fileList = document.getElementById('fileList');
-            fileList.innerHTML = '';  // Clear existing files
+            fileList.innerHTML = ''; // Clear existing files
 
             data.forEach(group => {
-                // Create and append date header
-                const dateHeader = document.createElement('h3');
-                dateHeader.textContent = `Files from ${group.date}`;  // Access the date
+                const dateHeader = document.createElement('div');
+                dateHeader.classList.add('date-header');
+                dateHeader.textContent = `Files from ${group.date}`; 
                 fileList.appendChild(dateHeader);
 
-                // Create a container for files of this date
                 const fileGroupDiv = document.createElement('div');
-                
                 fileGroupDiv.classList.add('file-list');
 
                 group.files.forEach(file => {
                     const fileItem = document.createElement('div');
                     fileItem.classList.add('file-item');
 
-                    // Create thumbnail element based on file type
-                    if (file.is_image) {
+                    if (file.is_folder) {
+                        const folderIcon = document.createElement('i');
+                        folderIcon.classList.add('material-icons', 'folder-icon');
+                        folderIcon.textContent = 'folder';
+                        folderIcon.onclick = async () => {
+                            loadFiles(`${path}/${file.name}`);
+                        };
+                        fileItem.appendChild(folderIcon);
+                    } else if (file.is_image) {
                         const img = document.createElement('img');
-                        img.src = `/uploads/${file.name}`;
+                        img.src = `/uploads/${path}/${file.name}`;
                         img.alt = file.name;
                         img.classList.add('thumbnail');
                         fileItem.appendChild(img);
-                    }
-
-                    if (file.is_video || file.is_audio) {
+                    } else if (file.is_video) {
                         const video = document.createElement('video');
                         video.controls = true;
                         video.classList.add('thumbnail');
                         const source = document.createElement('source');
-                        source.src = `/uploads/${file.name}`;
-                        source.type = file.is_audio ? 'audio/mp3' : 'video/mp4';  // Audio or video
+                        source.src = `/uploads/${path}/${file.name}`;
+                        source.type = 'video/mp4';
                         video.appendChild(source);
                         fileItem.appendChild(video);
-                    }
-
-                    if (file.is_doc) {
+                    } else if (file.name.includes('.mp3')) {
+                        const audio = document.createElement('audio');
+                        audio.controls = true;
+                        audio.classList.add('thumbnail');
+                        const source = document.createElement('source');
+                        source.src = `/uploads/${path}/${file.name}`;
+                        source.type = 'audio/mpeg';
+                        audio.appendChild(source);
+                        fileItem.appendChild(audio);
+                    } else if (file.is_doc) {
                         const iframe = document.createElement('iframe');
-                        iframe.src = `/uploads/${file.name}`;
+                        iframe.src = `/uploads/${path}/${file.name}`;
                         iframe.classList.add('thumbnail');
                         iframe.style.border = 'none';
                         fileItem.appendChild(iframe);
                     }
 
-                    // Add file name below the thumbnail
                     const fileName = document.createElement('p');
                     fileName.textContent = file.name;
                     fileItem.appendChild(fileName);
 
-                    // Add delete button
                     const deleteButton = document.createElement('button');
                     deleteButton.classList.add('delete-btn');
                     deleteButton.innerText = 'Delete';
-                    deleteButton.onclick = () => deleteFile(file.name);
+                    deleteButton.onclick = () => deleteFile(file.name, path);
                     fileItem.appendChild(deleteButton);
 
-                    // Append the file item to the file group
                     fileGroupDiv.appendChild(fileItem);
                 });
 
-                // Append the file group to the file list
                 fileList.appendChild(fileGroupDiv);
             });
         }
 
-        // Handle file upload
-        document.getElementById('uploadForm').addEventListener('submit', function (event) {
-            event.preventDefault();
-            const formData = new FormData(this);
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.text())
-            .then(() => loadFiles())  // Reload the files after upload
-            .catch(err => console.error('Error uploading file:', err));
-        });
-
         // Handle file deletion
-        function deleteFile(fileName) {
-            fetch(`/delete/${fileName}`, {
+        function deleteFile(fileName, path = '') {
+            fetch(`/upload?filename=${path ? path + "/" : path}${fileName}`, {
                 method: 'DELETE'
             })
-            .then(() => loadFiles())  // Reload the files after deletion
-            .catch(err => console.error('Error deleting file:', err));
+                .then(() => loadFiles(path))
+                .catch(err => console.error('Error deleting file:', err));
         }
 
-        // Load files when page loads
-        document.addEventListener('DOMContentLoaded', loadFiles);
+        // Add folder creation logic
+        async function addFolder(path = '') {
+           
+            const folderName = prompt("Enter the new folder name:");
+            console.log(folderName?folderName:"Not yet intialized",path)
+            if (folderName) {
+                fetch(`/upload?foldername=${folderName}&path=${path}`, {
+                    method: "ADD" 
+                })
+                .then(() => loadFiles(path))
+                .catch(err => console.error('Error creating folder:', err));
+            }
+        }
+
+        // Add event listener for the Add Folder button
+        document.getElementById('addFolderBtn').addEventListener('click', () => addFolder(currentFolder));
+
+        // Load files when the page loads
+        document.addEventListener('DOMContentLoaded', () => loadFiles());
     </script>
 </body>
+
 </html>

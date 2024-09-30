@@ -18,20 +18,30 @@ type FileGroup struct {
 
 // FileInfo holds information about a file
 type FileInfo struct {
-	Name    string `json:"name"`
-	IsImage bool   `json:"is_image"`
-	IsVideo bool   `json:"is_video"`
-	IsDoc   bool   `json:"is_doc"`
+	Name     string `json:"name"`
+	IsImage  bool   `json:"is_image"`
+	IsVideo  bool   `json:"is_video"`
+	IsDoc    bool   `json:"is_doc"`
+	IsFolder bool   `json:"is_folder"`
 }
 
-// ListFilesHandler lists the files and returns them as JSON
+// ListFilesHandler lists files in the given folder path and returns them as JSON
 func ListFilesHandler(w http.ResponseWriter, r *http.Request) {
-	files, err := os.ReadDir("../../cmd/uploads")
+	// Get the folder path from the query parameters (if provided)
+	folder := r.URL.Query().Get("folder")
+	fmt.Println(folder)
+	if folder == "" {
+		folder = "../../cmd/uploads" // Default directory
+	} else {
+		folder = filepath.Join("../../cmd/uploads", folder)
+	}
+
+	// Read files from the specified folder
+	files, err := os.ReadDir(folder)
 	if err != nil {
 		http.Error(w, "Unable to list files", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println(files)
 
 	// Group files by their modification date
 	fileGroups := make(map[string][]FileInfo)
@@ -46,10 +56,11 @@ func ListFilesHandler(w http.ResponseWriter, r *http.Request) {
 		modTime := info.ModTime().Format("2006-01-02")
 
 		fileInfo := FileInfo{
-			Name:    fileName,
-			IsImage: isImage(ext),
-			IsVideo: isVideo(ext),
-			IsDoc:   isDoc(ext),
+			Name:     fileName,
+			IsImage:  isImage(ext),
+			IsVideo:  isVideo(ext),
+			IsDoc:    isDoc(ext),
+			IsFolder: file.IsDir(),
 		}
 
 		fileGroups[modTime] = append(fileGroups[modTime], fileInfo)
